@@ -1,0 +1,4 @@
+{
+  "out": "testenv/first/{{ .Title }}.md",
+  "params": ["Title", "Body", "Author"]
+}
