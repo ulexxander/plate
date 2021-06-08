@@ -1,1 +1,3 @@
 out/
+testenv/*
+!testenv/_templates
