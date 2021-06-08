@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -58,6 +59,7 @@ func (l *Local) collectDescriptors() (map[string]templates.Descriptor, error) {
 			return err
 		}
 
+		// TODO: do we have safer way? (may fail on shindows)
 		pathRel := strings.TrimPrefix(path, l.templatesDir+"/")
 
 		if info.IsDir() {
@@ -111,24 +113,24 @@ func (l *Local) makeDescriptor(pathAbs, pathRel, filename string) (*templates.De
 
 	descriptor := templates.Descriptor{
 		ManifestPath: manifestPath,
-		Path:         pathAbs,
+		ContentPath:  pathAbs,
 		Slug:         slug,
 	}
 
 	return &descriptor, nil
 }
 
-func (l *Local) Provide(slug string) (string, error) {
+func (l *Local) ProvideContent(slug string) (string, error) {
 	descriptor, ok := l.descriptors[slug]
 	if !ok {
-		return "", fmt.Errorf("no templates with slug %s", slug)
+		return "", fmt.Errorf("no template with slug %s", slug)
 	}
 
 	if l.config.IsDebug() {
-		fmt.Println("reading template", descriptor.Slug)
+		fmt.Println("reading content of", descriptor.Slug)
 	}
 
-	f, err := os.Open(descriptor.Path)
+	f, err := os.Open(descriptor.ContentPath)
 	if err != nil {
 		return "", errors.Wrap(err, "could not open template file")
 	}
@@ -140,4 +142,32 @@ func (l *Local) Provide(slug string) (string, error) {
 	}
 
 	return string(content), nil
+}
+
+func (l *Local) ProvideManifest(slug string) (*templates.Manifest, error) {
+	descriptor, ok := l.descriptors[slug]
+	if !ok {
+		return nil, fmt.Errorf("no template with slug %s", slug)
+	}
+
+	if l.config.IsDebug() {
+		fmt.Println("reading manifest for", descriptor.Slug)
+	}
+
+	f, err := os.Open(descriptor.ManifestPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not open manifest file")
+	}
+	defer f.Close()
+
+	var manifest templates.Manifest
+	if err := json.NewDecoder(f).Decode(&manifest); err != nil {
+		return nil, errors.Wrap(err, "failed to decode manifest as json")
+	}
+
+	if l.config.IsDebug() {
+		fmt.Printf("got manifest for %s %+v\n", descriptor.Slug, manifest)
+	}
+
+	return &manifest, nil
 }

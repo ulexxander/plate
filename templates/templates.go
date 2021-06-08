@@ -2,9 +2,11 @@ package templates
 
 type Descriptor struct {
 	ManifestPath string
-	Path         string
+	ContentPath  string
 	Slug         string
 }
 
-// type Provider interface {
-// }
+type Manifest struct {
+	Out    string   `json:"out"`
+	Params []string `json:"params"`
+}

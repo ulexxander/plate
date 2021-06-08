@@ -2,14 +2,18 @@ package commands
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
 	"github.com/pkg/errors"
 	"github.com/ulexxander/plate/config"
+	"github.com/ulexxander/plate/templates"
 	"github.com/ulexxander/plate/templates/providers"
+	"github.com/ulexxander/plate/utils/fsutils"
 )
 
 var (
@@ -28,26 +32,36 @@ func (n *New) Exec(args []string) error {
 	}
 
 	slug := args[0]
-	provided, err := n.Provider.Provide(slug)
+	content, err := n.Provider.ProvideContent(slug)
 	if err != nil {
 		return err
 	}
 
-	tpl, err := template.New(slug).Parse(provided)
+	manifest, err := n.Provider.ProvideManifest(slug)
+	if err != nil {
+		return err
+	}
+
+	tpl, err := template.New(fmt.Sprintf("%s-content", slug)).Parse(content)
 	if err != nil {
 		return errors.Wrap(err, "error when parsing template")
 	}
 
-	outf, err := n.openOutputFile(slug)
+	input, err := n.scanTemplateInput(manifest)
+	if err != nil {
+		return err
+	}
+
+	outPath, err := n.prepareOutputPath(slug, manifest, input)
+	if err != nil {
+		return err
+	}
+
+	outf, err := n.openOutputFile(outPath)
 	if err != nil {
 		return err
 	}
 	defer outf.Close()
-
-	input, err := n.scanTemplateInput()
-	if err != nil {
-		return err
-	}
 
 	if err := tpl.Execute(outf, input); err != nil {
 		return errors.Wrap(err, "failed to execute template")
@@ -56,44 +70,53 @@ func (n *New) Exec(args []string) error {
 	return nil
 }
 
-func (n *New) openOutputFile(slug string) (*os.File, error) {
-	filename := n.Config.Generated.OutputDir + "/" + slug
-
-	outf, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		return nil, errors.Wrap(err, "error when opening output file")
-	}
-
-	return outf, nil
-}
-
-func (n *New) scanTemplateInput() (map[string]string, error) {
+func (n *New) scanTemplateInput(manifest *templates.Manifest) (map[string]string, error) {
 	params := map[string]string{}
 
-	fmt.Println("enter template parameters key=value")
+	r := bufio.NewReader(os.Stdin)
+	for _, k := range manifest.Params {
+		fmt.Printf("%s:\n", k)
 
-	inputScanner := bufio.NewScanner(os.Stdin)
-	for inputScanner.Scan() {
-		line := inputScanner.Text()
-
-		if line == "" {
-			break
+		v, err := r.ReadString('\n')
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to read template param from stdin")
 		}
 
-		// temporary parameters passing
-		kv := strings.Split(line, "=")
-		if len(kv) < 2 {
-			return nil, ErrInvalidParam
-		}
-
-		k := kv[0]
-		v := kv[1]
-		params[k] = v
+		params[k] = strings.TrimSuffix(v, "\n")
 	}
 
-	if err := inputScanner.Err(); err != nil {
-		return nil, errors.Wrap(err, "error when scanning user input")
+	if n.Config.IsDebug() {
+		fmt.Printf("params for template are %+v\n", params)
 	}
 
 	return params, nil
+}
+
+func (n *New) prepareOutputPath(slug string, manifest *templates.Manifest, input map[string]string) (string, error) {
+	t, err := template.New(fmt.Sprintf("%s-out", slug)).Parse(manifest.Out)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to parse manifest output path")
+	}
+
+	var result bytes.Buffer
+	if err := t.Execute(&result, input); err != nil {
+		return "", errors.Wrap(err, "could not derive output path")
+	}
+
+	return result.String(), nil
+}
+
+func (n *New) openOutputFile(outPath string) (*os.File, error) {
+	outDir := filepath.Join(outPath, "..")
+
+	if err := fsutils.DirMustExist(outDir); err != nil {
+		return nil, errors.Wrap(err, "failed to ensure that output directory exists")
+	}
+
+	outf, err := os.OpenFile(outPath, os.O_CREATE|os.O_WRONLY, 0777)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not open output file")
+	}
+
+	return outf, nil
 }
