@@ -53,6 +53,7 @@ func (l *Local) Init() error {
 func (l *Local) collectDescriptors() (map[string]templates.Descriptor, error) {
 	descriptors := map[string]templates.Descriptor{}
 
+	// TODO: better templates scanning, go through manifests, not actual templtes
 	err := filepath.Walk(l.templatesDir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			// TODO: smarter error handling
@@ -167,6 +168,10 @@ func (l *Local) ProvideManifest(slug string) (*templates.Manifest, error) {
 
 	if l.config.IsDebug() {
 		fmt.Printf("got manifest for %s %+v\n", descriptor.Slug, manifest)
+	}
+
+	if err := manifest.Validate(); err != nil {
+		return nil, errors.Wrap(err, "invalid manifest")
 	}
 
 	return &manifest, nil

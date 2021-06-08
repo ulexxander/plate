@@ -5,8 +5,3 @@ type Descriptor struct {
 	ContentPath  string
 	Slug         string
 }
-
-type Manifest struct {
-	Out    string   `json:"out"`
-	Params []string `json:"params"`
-}

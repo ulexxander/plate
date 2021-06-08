@@ -1,1 +1,4 @@
-{}
+{
+  "out": "testenv/services/{{ .Name }}.js",
+  "params": ["Name"]
+}
