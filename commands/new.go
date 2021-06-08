@@ -13,35 +13,32 @@ import (
 )
 
 var (
-	ErrNoArgsNew    = errors.New("new command requires at least 1 argument")
-	ErrInvalidParam = errors.New("invalid tempate param")
+	ErrNewNoArgs    = errors.New("new command requires at least 1 argument")
+	ErrInvalidParam = errors.New("invalid template param")
 )
 
 type New struct {
-	Args     []string
 	Config   *config.Shape
 	Provider *providers.Local // TODO: replace with interface
 }
 
-func (n *New) Exec() error {
-	if len(n.Args) < 1 {
-		return ErrNoArgsNew
+func (n *New) Exec(args []string) error {
+	if len(args) < 1 {
+		return ErrNewNoArgs
 	}
 
-	parents := n.Args[:len(n.Args)-1]
-	name := n.Args[len(n.Args)-1]
-
-	provided, err := n.Provider.Provide(parents, name)
+	slug := args[0]
+	provided, err := n.Provider.Provide(slug)
 	if err != nil {
 		return err
 	}
 
-	tpl, err := template.New(name).Parse(provided)
+	tpl, err := template.New(slug).Parse(provided)
 	if err != nil {
 		return errors.Wrap(err, "error when parsing template")
 	}
 
-	outf, err := n.openOutputFile(parents, name)
+	outf, err := n.openOutputFile(slug)
 	if err != nil {
 		return err
 	}
@@ -59,10 +56,10 @@ func (n *New) Exec() error {
 	return nil
 }
 
-func (n *New) openOutputFile(parents []string, name string) (*os.File, error) {
-	fname := n.Config.Generated.OutputDir + "/" + name
+func (n *New) openOutputFile(slug string) (*os.File, error) {
+	filename := n.Config.Generated.OutputDir + "/" + slug
 
-	outf, err := os.OpenFile(fname, os.O_CREATE|os.O_WRONLY, 0666)
+	outf, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return nil, errors.Wrap(err, "error when opening output file")
 	}
@@ -79,7 +76,7 @@ func (n *New) scanTemplateInput() (map[string]string, error) {
 	for inputScanner.Scan() {
 		line := inputScanner.Text()
 
-		if line == "end" {
+		if line == "" {
 			break
 		}
 

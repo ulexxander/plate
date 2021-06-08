@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/pkg/errors"
@@ -18,7 +17,8 @@ var (
 
 func main() {
 	if err := run(); err != nil {
-		log.Fatalln(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }
 
@@ -41,11 +41,11 @@ func run() error {
 	var err error
 	switch command {
 	case "new":
-		c := commands.New{Args: commandArgs, Config: cfg, Provider: provLocal}
-		err = c.Exec()
+		c := commands.New{Config: cfg, Provider: provLocal}
+		err = c.Exec(commandArgs)
 	case "init":
-		c := commands.Init{Args: commandArgs}
-		err = c.Exec()
+		c := commands.Init{}
+		err = c.Exec(commandArgs)
 	default:
 		err = fmt.Errorf("received unknown command: %s", command)
 	}

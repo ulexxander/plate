@@ -8,23 +8,29 @@ const (
 	Debug
 )
 
+type Templates struct {
+	LocalDir          string
+	ManifestExtension string
+}
+
+type Generated struct {
+	OutputDir string
+}
+
 type Shape struct {
-	Templates struct {
-		LocalDir string
-	}
-	Generated struct {
-		OutputDir string
-	}
+	Templates Templates
+	Generated Generated
 	Verbosity VerboseLevel
 }
 
 func NewDefault() *Shape {
 	return &Shape{
-		Templates: struct{ LocalDir string }{
-			LocalDir: "testenv/_templates",
+		Templates: Templates{
+			LocalDir:          "testenv/_templates",
+			ManifestExtension: ".plate.json",
 		},
-		Generated: struct{ OutputDir string }{
-			OutputDir: ".",
+		Generated: Generated{
+			OutputDir: "testenv/out",
 		},
 		Verbosity: Debug,
 	}

@@ -1,12 +1,13 @@
 package commands
 
-import "log"
+import (
+	"errors"
+)
 
 type Init struct {
 	Args []string
 }
 
-func (n *Init) Exec() error {
-	log.Println("init cmd not implemented")
-	return nil
+func (n *Init) Exec(args []string) error {
+	return errors.New("init cmd not implemented")
 }
