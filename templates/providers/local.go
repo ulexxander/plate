@@ -14,10 +14,6 @@ import (
 	"github.com/ulexxander/plate/templates"
 )
 
-var (
-	ErrNoSlugs = errors.New("no path to provide template")
-)
-
 type Local struct {
 	config       *config.Shape
 	templatesDir string

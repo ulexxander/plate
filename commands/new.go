@@ -107,7 +107,7 @@ func (n *New) prepareOutputPath(slug string, manifest *templates.Manifest, input
 }
 
 func (n *New) openOutputFile(outPath string) (*os.File, error) {
-	outDir := filepath.Join(outPath, "..")
+	outDir := filepath.Dir(outPath)
 
 	if err := fsutils.DirMustExist(outDir); err != nil {
 		return nil, errors.Wrap(err, "failed to ensure that output directory exists")
